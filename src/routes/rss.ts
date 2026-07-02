@@ -1,6 +1,6 @@
 import { Context } from 'hono';
 import { Env, FeedConfig, FeedMetadata, EmailData } from '../types';
-import { generateRssFeed } from '../utils/feed-generator';
+import { generateRssFeed, RssItem } from '../utils/feed-generator';
 
 /**
  * Generates an RSS feed for a specific feed ID
@@ -49,18 +49,20 @@ export async function handle(c: Context): Promise<Response> {
 
     // Get the emails for this feed (up to the last 20)
     const emails = feedMetadata.emails.slice(0, 20);
-    const emailsData: EmailData[] = [];
+    const items: RssItem[] = [];
 
-    // Fetch all email content
+    // Fetch all email content. Items link by the KV key's trailing storage
+    // timestamp — NOT receivedAt, which is the email's own Date header and
+    // never matches the key.
     for (const email of emails) {
       const emailData = await emailStorage.get(email.key, { type: 'json' }) as EmailData | null;
       if (emailData) {
-        emailsData.push(emailData);
+        items.push({ data: emailData, linkId: email.key.split(':').pop() as string });
       }
     }
 
     // Generate the RSS feed XML
-    const rssXml = generateRssFeed(feedConfig, emailsData, baseUrl, feedId);
+    const rssXml = generateRssFeed(feedConfig, items, baseUrl, feedId);
 
     // Return the RSS feed with appropriate content type
     return new Response(rssXml, {
@@ -90,8 +92,17 @@ export async function handleEmailView(c: Context): Promise<Response> {
       return new Response('Not Found', { status: 404 });
     }
 
-    const emailKey = `feed:${feedId}:email:${timestamp}`;
-    const emailData = await env.EMAIL_STORAGE.get(emailKey, { type: 'json' }) as EmailData | null;
+    // Emails exist under two key formats (inbound: feed:<id>:<ts>,
+    // storage.ts: feed:<id>:email:<ts>), so resolve the real key through the
+    // feed metadata instead of reconstructing it.
+    const feedMetadata = await env.EMAIL_STORAGE.get(`feed:${feedId}:metadata`, { type: 'json' }) as FeedMetadata | null;
+    const entry = feedMetadata?.emails.find((email) => email.key.endsWith(`:${timestamp}`));
+
+    if (!entry) {
+      return new Response('Email not found', { status: 404 });
+    }
+
+    const emailData = await env.EMAIL_STORAGE.get(entry.key, { type: 'json' }) as EmailData | null;
 
     if (!emailData) {
       return new Response('Email not found', { status: 404 });

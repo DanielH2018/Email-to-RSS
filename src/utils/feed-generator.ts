@@ -1,12 +1,20 @@
 import { Feed } from 'feed';
 import { FeedConfig, EmailData } from '../types';
 
+// An email plus the trailing timestamp of its KV key, which is the only
+// identifier the email view route can resolve (receivedAt is the email's
+// Date header and never matches the key)
+export interface RssItem {
+  data: EmailData;
+  linkId: string;
+}
+
 /**
  * Generate an RSS feed from a list of emails
  */
 export function generateRssFeed(
   feedConfig: FeedConfig,
-  emails: EmailData[],
+  items: RssItem[],
   baseUrl: string,
   feedId: string
 ): string {
@@ -30,14 +38,14 @@ export function generateRssFeed(
   });
 
   // Add each email as a feed item
-  for (const email of emails) {
+  for (const { data: email, linkId } of items) {
     const date = new Date(email.receivedAt);
     const uniqueId = `${email.receivedAt}-${Buffer.from(email.subject).toString('base64').substring(0, 10)}`;
-    
+
     feed.addItem({
       title: email.subject,
       id: uniqueId,
-      link: `${baseUrl}/rss/${feedId}/emails/${email.receivedAt}`,
+      link: `${baseUrl}/rss/${feedId}/emails/${linkId}`,
       description: email.content,
       content: email.content,
       author: [

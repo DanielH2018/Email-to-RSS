@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { Hono } from "hono";
 import { handle as handleRSS, handleEmailView } from "./rss";
 import { createMockEnv } from "../test/setup";
-import { Env, EmailData, FeedConfig, FeedMetadata } from "../types";
+import { EmailData, FeedConfig, FeedMetadata } from "../types";
 
 const ORIGIN = "https://email-rss.example.com";
 
@@ -12,7 +12,15 @@ describe("RSS Routes", () => {
   let request: (path: string, init?: RequestInit) => Promise<Response>;
 
   const feedId = "paper.frost.31";
+  // The inbound webhook keys emails by storage time (feed:<id>:<Date.now()>),
+  // while receivedAt is the email's own Date header — they always differ.
   const receivedAt = 1782758098000;
+  const storedAt = 1782758100123;
+  const emailKey = `feed:${feedId}:${storedAt}`;
+
+  // Legacy second format written by storage.ts (feed:<id>:email:<ts>)
+  const legacyStoredAt = 1782154136999;
+  const legacyEmailKey = `feed:${feedId}:email:${legacyStoredAt}`;
 
   const emailData: EmailData = {
     subject: "AI's budget",
@@ -20,6 +28,12 @@ describe("RSS Routes", () => {
     content: "<p>Hello newsletter</p>",
     receivedAt,
     headers: {},
+  };
+
+  const legacyEmailData: EmailData = {
+    ...emailData,
+    subject: "Older issue",
+    content: "<p>Legacy content</p>",
   };
 
   beforeEach(async () => {
@@ -42,10 +56,11 @@ describe("RSS Routes", () => {
     };
     const metadata: FeedMetadata = {
       emails: [
+        { key: emailKey, subject: emailData.subject, receivedAt },
         {
-          key: `feed:${feedId}:email:${receivedAt}`,
-          subject: emailData.subject,
-          receivedAt,
+          key: legacyEmailKey,
+          subject: legacyEmailData.subject,
+          receivedAt: receivedAt - 1000,
         },
       ],
     };
@@ -57,9 +72,10 @@ describe("RSS Routes", () => {
       `feed:${feedId}:metadata`,
       JSON.stringify(metadata),
     );
+    await mockEnv.EMAIL_STORAGE.put(emailKey, JSON.stringify(emailData));
     await mockEnv.EMAIL_STORAGE.put(
-      `feed:${feedId}:email:${receivedAt}`,
-      JSON.stringify(emailData),
+      legacyEmailKey,
+      JSON.stringify(legacyEmailData),
     );
   });
 
@@ -78,23 +94,35 @@ describe("RSS Routes", () => {
       expect(xml).not.toContain(`https://${mockEnv.DOMAIN}/`);
     });
 
-    it("links items to the public email view route", async () => {
+    it("links items by their KV key timestamp so the links resolve", async () => {
       const res = await request(`${ORIGIN}/rss/${feedId}`);
       const xml = await res.text();
       expect(xml).toContain(
-        `<link>${ORIGIN}/rss/${feedId}/emails/${receivedAt}</link>`,
+        `<link>${ORIGIN}/rss/${feedId}/emails/${storedAt}</link>`,
+      );
+      expect(xml).toContain(
+        `<link>${ORIGIN}/rss/${feedId}/emails/${legacyStoredAt}</link>`,
       );
     });
   });
 
   describe("GET /rss/:feedId/emails/:timestamp", () => {
     it("renders the stored email as HTML", async () => {
-      const res = await request(`${ORIGIN}/rss/${feedId}/emails/${receivedAt}`);
+      const res = await request(`${ORIGIN}/rss/${feedId}/emails/${storedAt}`);
       expect(res.status).toBe(200);
       expect(res.headers.get("Content-Type")).toContain("text/html");
       const body = await res.text();
       expect(body).toContain("<p>Hello newsletter</p>");
       expect(body).toContain(emailData.subject);
+    });
+
+    it("resolves emails stored under the legacy feed:<id>:email:<ts> key format", async () => {
+      const res = await request(
+        `${ORIGIN}/rss/${feedId}/emails/${legacyStoredAt}`,
+      );
+      expect(res.status).toBe(200);
+      const body = await res.text();
+      expect(body).toContain("<p>Legacy content</p>");
     });
 
     it("returns 404 for a missing email", async () => {
