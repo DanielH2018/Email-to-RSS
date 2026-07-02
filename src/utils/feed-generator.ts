@@ -5,9 +5,10 @@ import { FeedConfig, EmailData } from '../types';
  * Generate an RSS feed from a list of emails
  */
 export function generateRssFeed(
-  feedConfig: FeedConfig, 
+  feedConfig: FeedConfig,
   emails: EmailData[],
-  baseUrl: string
+  baseUrl: string,
+  feedId: string
 ): string {
   // Create a new feed
   const feed = new Feed({
@@ -36,7 +37,7 @@ export function generateRssFeed(
     feed.addItem({
       title: email.subject,
       id: uniqueId,
-      link: `${baseUrl}/emails/${uniqueId}`,
+      link: `${baseUrl}/rss/${feedId}/emails/${email.receivedAt}`,
       description: email.content,
       content: email.content,
       author: [

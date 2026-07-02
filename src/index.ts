@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { handle as handleInbound } from './routes/inbound';
-import { handle as handleRSS } from './routes/rss';
+import { handle as handleRSS, handleEmailView } from './routes/rss';
 import { handle as handleAdmin } from './routes/admin';
 import { Env } from './types';
 
@@ -127,6 +127,7 @@ api.post('/inbound', handleInbound);
 
 // RSS feed routes (public)
 rss.get('/:feedId', handleRSS);
+rss.get('/:feedId/emails/:timestamp', handleEmailView);
 
 // Admin routes (protected)
 admin.route('/', handleAdmin);

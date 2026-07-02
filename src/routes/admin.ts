@@ -463,7 +463,7 @@ app.get("/", async (c) => {
                           <tbody id="feed-table-body">
                             ${feedsWithConfig.map((feed) => {
                               const emailAddress = `${feed.id}@${env.DOMAIN}`;
-                              const rssUrl = `https://${env.DOMAIN}/rss/${feed.id}`;
+                              const rssUrl = `${url.origin}/rss/${feed.id}`;
                               const titleDisplay = clampText(feed.title, 160);
                               const titleHover = clampText(feed.title, 1000);
                               const sortTitle = titleHover.toLowerCase();
@@ -664,7 +664,7 @@ app.get("/", async (c) => {
                   <ul class="feed-list">
                     ${feedsWithConfig.map((feed) => {
                       const emailAddress = `${feed.id}@${env.DOMAIN}`;
-                      const rssUrl = `https://${env.DOMAIN}/rss/${feed.id}`;
+                      const rssUrl = `${url.origin}/rss/${feed.id}`;
                       const titleDisplay = clampText(feed.title, 140);
                       const titleHover = clampText(feed.title, 1000);
                       const descDisplay = clampText(feed.description || "", 240);
@@ -1484,6 +1484,7 @@ app.post("/feeds/create", async (c) => {
   // Type assertion for environment variables
   const env = c.env as unknown as Env;
   const emailStorage = env.EMAIL_STORAGE;
+  const origin = new URL(c.req.url).origin;
 
   try {
     const formData = await c.req.formData();
@@ -1511,8 +1512,8 @@ app.post("/feeds/create", async (c) => {
       title: parsedData.title,
       description: parsedData.description,
       language: parsedData.language,
-      site_url: `https://${env.DOMAIN}/rss/${feedId}`,
-      feed_url: `https://${env.DOMAIN}/rss/${feedId}`,
+      site_url: `${origin}/rss/${feedId}`,
+      feed_url: `${origin}/rss/${feedId}`,
       allowed_senders: parsedData.allowedSenders,
       created_at: Date.now(),
       updated_at: Date.now(),
@@ -1998,6 +1999,7 @@ app.get("/feeds/:feedId/emails", async (c) => {
   // Type assertion for environment variables
   const env = c.env as unknown as Env;
   const emailStorage = env.EMAIL_STORAGE;
+  const origin = new URL(c.req.url).origin;
   const feedId = c.req.param("feedId");
   const message = c.req.query("message");
   const count = Number(c.req.query("count") || "0");
@@ -2089,8 +2091,8 @@ app.get("/feeds/:feedId/emails", async (c) => {
                 <div class="copyable-content">
                   <span
                     class="copyable-value"
-                    data-copy="https://${env.DOMAIN}/rss/${feedId}"
-                    >https://${env.DOMAIN}/rss/${feedId}</span
+                    data-copy="${origin}/rss/${feedId}"
+                    >${origin}/rss/${feedId}</span
                   >
                   <div class="copy-icon-container">
                     <svg
