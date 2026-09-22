@@ -56,7 +56,7 @@ Notes:
 
 ## Development workflow
 
-- Install: `npm install`
+- Install: `npm ci`
 - Test: `npm test`
 - Build (dry-run deploy bundle): `npm run build`
 - Dev server: `npm run dev`

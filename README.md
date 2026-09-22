@@ -86,7 +86,7 @@ Main routes:
 ## Development
 
 ```bash
-npm install
+npm ci
 npm run dev
 npm test
 npm run build
