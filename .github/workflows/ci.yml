@@ -52,7 +52,8 @@ jobs:
           command: deploy --env production
       - name: Check the admin login page answers
         run: |
-          domain=$(sed -n '/^\[env\.production\.vars\]/,$ s/^DOMAIN *= *"\([^"]*\)".*/\1/p' wrangler.toml | head -n1)
-          test -n "$domain" || { echo "::error::No DOMAIN under [env.production.vars] in wrangler.toml"; exit 1; }
+          # DOMAIN names the mail domain, which can differ from the host the Worker is routed on.
+          host=$(sed -n '/^\[env\.production\]/,$ s/.*pattern *= *"\([^"]*\)".*custom_domain *= *true.*/\1/p' wrangler.toml | head -n1)
+          test -n "$host" || { echo "::error::No custom_domain route under [env.production] in wrangler.toml"; exit 1; }
           curl --fail --silent --show-error --retry 5 --retry-delay 10 --retry-all-errors \
-            -o /dev/null "https://$domain/admin/login"
+            -o /dev/null "https://$host/admin/login"
