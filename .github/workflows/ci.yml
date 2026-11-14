@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - name: Bundle with placeholder config
+        run: |
+          sed 's/REPLACE_WITH_COMPATIBILITY_DATE/2025-01-01/' wrangler-example.toml > wrangler.toml
+          npx wrangler deploy --dry-run --env production --outdir=dist
+
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Write wrangler.toml
+        env:
+          WRANGLER_TOML: ${{ secrets.WRANGLER_TOML }}
+        run: |
+          test -n "$WRANGLER_TOML" || { echo "::error::The WRANGLER_TOML secret is empty"; exit 1; }
+          printf '%s\n' "$WRANGLER_TOML" > wrangler.toml
+      - uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4.1.3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy --env production
+      - name: Check the admin login page answers
+        run: |
+          domain=$(sed -n '/^\[env\.production\.vars\]/,$ s/^DOMAIN *= *"\([^"]*\)".*/\1/p' wrangler.toml | head -n1)
+          test -n "$domain" || { echo "::error::No DOMAIN under [env.production.vars] in wrangler.toml"; exit 1; }
+          curl --fail --silent --show-error --retry 5 --retry-delay 10 --retry-all-errors \
+            -o /dev/null "https://$domain/admin/login"

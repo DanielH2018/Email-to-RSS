@@ -81,6 +81,8 @@ Main routes:
    npm run deploy
    ```
 
+   After the first deploy, CI deploys every push to `main` (see [Continuous deployment](#continuous-deployment)).
+
 6. Open `https://yourdomain.com/admin` and sign in.
 
 ## Development
@@ -106,9 +108,25 @@ npm run build
 - For high-value feeds, set `Allowed senders` so only known sender addresses/domains are accepted.
 - You should use a strong admin password and rotate periodically.
 
+## Continuous deployment
+
+`.github/workflows/ci.yml` runs the tests and a dry-run bundle on every pull request and push. A push to `main` then deploys the Worker with `wrangler deploy --env production` and checks that `/admin/login` answers. To redeploy without a code change, run the workflow from the Actions tab (`workflow_dispatch`).
+
+The deploy job reads three repository secrets:
+
+| Secret                  | Holds                                                                  |
+| ----------------------- | ---------------------------------------------------------------------- |
+| `WRANGLER_TOML`         | The whole generated `wrangler.toml`, which stays out of the repo       |
+| `CLOUDFLARE_API_TOKEN`  | A token that can edit Workers scripts, KV and the custom-domain routes |
+| `CLOUDFLARE_ACCOUNT_ID` | The Cloudflare account ID                                              |
+
+`ADMIN_PASSWORD` stays a Worker secret in Cloudflare; a deploy keeps it. To change it, run `npx wrangler secret put ADMIN_PASSWORD --env production` from a local clone.
+
 ## Upgrading dependencies
 
-To refresh dependencies to latest:
+Renovate (`renovate.json`) keeps dependencies current. Minor and patch updates share one PR and merge themselves once CI is green and the release is 7 days old, which deploys them. Major updates open their own PRs and wait for review.
+
+To refresh dependencies by hand:
 
 ```bash
 npm outdated
@@ -117,7 +135,7 @@ npm test
 npm run build
 ```
 
-Then update `compatibility_date` and redeploy.
+Then update `compatibility_date` in the `WRANGLER_TOML` secret and merge to `main`.
 
 ## License
 

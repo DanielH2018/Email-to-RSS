@@ -50,7 +50,7 @@ Notes:
 1. `npx wrangler login`
 2. `bash setup.sh`
 3. Configure ForwardEmail DNS records in Cloudflare
-4. `npm run deploy`
+4. `npm run deploy` for the first deploy; after that, CI deploys every push to `main` (`.github/workflows/ci.yml`)
 
 `setup.sh` assumes Wrangler v4 command syntax (`wrangler kv namespace ...`).
 
