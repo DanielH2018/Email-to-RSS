@@ -1,0 +1,25 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "helpers:pinGitHubActionDigests",
+    ":dependencyDashboard",
+    ":semanticCommitsDisabled"
+  ],
+  "schedule": ["before 6am"],
+  "rebaseWhen": "conflicted",
+  "vulnerabilityAlerts": {
+    "schedule": ["at any time"],
+    "minimumReleaseAge": "1 day"
+  },
+  "packageRules": [
+    {
+      "description": "Every merge to main deploys the Worker, so non-major updates share one PR and one deploy. They merge themselves once CI is green and the release is 7 days old. Majors open their own PRs and wait for a person.",
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "groupName": "non-major dependencies",
+      "automerge": true,
+      "platformAutomerge": false,
+      "minimumReleaseAge": "7 days"
+    }
+  ]
+}
