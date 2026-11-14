@@ -114,11 +114,11 @@ npm run build
 
 The deploy job reads three repository secrets:
 
-| Secret                  | Holds                                                                  |
-| ----------------------- | ---------------------------------------------------------------------- |
-| `WRANGLER_TOML`         | The whole generated `wrangler.toml`, which stays out of the repo       |
-| `CLOUDFLARE_API_TOKEN`  | A token that can edit Workers scripts, KV and the custom-domain routes |
-| `CLOUDFLARE_ACCOUNT_ID` | The Cloudflare account ID                                              |
+| Secret                  | Holds                                                                                                         |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `WRANGLER_TOML`         | The whole generated `wrangler.toml`, which stays out of the repo                                              |
+| `CLOUDFLARE_API_TOKEN`  | An account-owned token: Workers `Editor` on this Worker, and Zone `Workers Routes Write` on the domain's zone |
+| `CLOUDFLARE_ACCOUNT_ID` | The Cloudflare account ID                                                                                     |
 
 `ADMIN_PASSWORD` stays a Worker secret in Cloudflare; a deploy keeps it. To change it, run `npx wrangler secret put ADMIN_PASSWORD --env production` from a local clone.
 
